@@ -1319,7 +1319,52 @@ function renderQView(){
   });
   var fb=mk('div','q-feedback'+(answered?(a.ok?' fb-ok':' fb-no'):''));
   if(answered) fb.textContent=a.ok?'Togri!':'Xato. Togri: '+q.o[q.c];
-  card.appendChild(qn); card.appendChild(qt); card.appendChild(og); card.appendChild(fb);
+
+  /* Hint buttons - only show if not answered and >2 visible options */
+  if(!answered){
+    var hintRow=mk('div');
+    hintRow.style.cssText='display:flex;gap:8px;margin-top:12px;justify-content:center';
+    hintRow.id='hint-row-'+curQIdx;
+
+    var visCount=og.querySelectorAll('.opt-btn:not([style*="display:none"])').length;
+
+    function makeHintBtn(label, removeCount){
+      var hb=mk('button');
+      hb.style.cssText='padding:7px 14px;border:none;border-radius:20px;background:#FFF7ED;font-size:12px;font-weight:600;color:#F97316;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(249,115,22,.15)';
+      hb.innerHTML='&#128161; '+label;
+      hb.onmouseover=function(){this.style.background='#F97316';this.style.color='#fff';this.style.boxShadow='0 4px 12px rgba(249,115,22,.3)';};
+      hb.onmouseout=function(){this.style.background='#FFF7ED';this.style.color='#F97316';this.style.boxShadow='0 2px 8px rgba(249,115,22,.15)';};
+      hb.onclick=function(){
+        /* hide `removeCount` wrong options randomly */
+        var btns=Array.from(og.querySelectorAll('.opt-btn'));
+        var wrongs=btns.filter(function(b,i){
+          return i!==q.c && b.style.display!=='none';
+        });
+        /* shuffle and hide first removeCount */
+        wrongs.sort(function(){return Math.random()-.5;});
+        var toHide=Math.min(removeCount, wrongs.length-1); /* keep at least 1 wrong */
+        for(var r=0;r<toHide;r++) wrongs[r].style.display='none';
+        /* remove hint row */
+        var hr=document.getElementById('hint-row-'+curQIdx);
+        if(hr) hr.parentNode.removeChild(hr);
+      };
+      return hb;
+    }
+
+    /* show "3 ta qoldir" only if 4 visible */
+    var curVis=og.querySelectorAll('.opt-btn').length;
+    if(curVis>=4){
+      hintRow.appendChild(makeHintBtn('3 ta qoldir', 1));
+    }
+    if(curVis>=3){
+      hintRow.appendChild(makeHintBtn('2 ta qoldir', curVis-2));
+    }
+
+    card.appendChild(qn); card.appendChild(qt); card.appendChild(og);
+    card.appendChild(hintRow); card.appendChild(fb);
+  } else {
+    card.appendChild(qn); card.appendChild(qt); card.appendChild(og); card.appendChild(fb);
+  }
   if(answered&&!testDone){
     var nb=mk('button','next-btn');
     nb.textContent=curQIdx<testQs.length-1?'Keyingi >':'Natija';
