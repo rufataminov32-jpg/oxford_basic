@@ -96,12 +96,12 @@ body{font-family:Inter,sans-serif;background:var(--g1);color:var(--g8);min-heigh
 .start-test-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--or),var(--od));color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif}
 .test-score-badge{background:var(--op);color:var(--od);padding:5px 12px;border-radius:14px;font-size:12px;font-weight:700}
 .progress-dots{display:flex;flex-wrap:wrap;gap:4px;margin:14px 0;padding:12px;background:var(--g1);border-radius:10px}
-.pdot{width:14px;height:14px;border-radius:4px;flex-shrink:0;transition:transform .15s}
-.pdot.pend{background:var(--g3)}
-.pdot.pcur{background:var(--or);box-shadow:0 0 0 2px #fff,0 0 0 3px var(--or);transform:scale(1.15)}
-.pdot.pok{background:var(--gn)}
-.pdot.pno{background:var(--rd)}
-.pdot.pskip{background:#EAB308}
+.pdot{width:14px;height:14px;border-radius:3px;flex-shrink:0;transition:all .15s}
+.pdot.pend{background:#D1D5DB !important}
+.pdot.pcur{background:#F97316 !important;box-shadow:0 0 0 2px #fff,0 0 0 3px #F97316;transform:scale(1.15)}
+.pdot.pok{background:#22C55E !important}
+.pdot.pno{background:#EF4444 !important}
+.pdot.pskip{background:#EAB308 !important}
 .q-card{background:#fff;border-radius:14px;padding:22px;border:2px solid var(--g2);animation:fadeUp .25s ease}
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .q-card.q-ok{border-color:var(--gn)}
@@ -516,13 +516,13 @@ function renderSpell(tc){
       '.spell-letter{width:40px;height:44px;border:2px solid var(--g3);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;cursor:pointer;background:#fff;transition:all .15s;color:var(--g8)}'+
       '.spell-letter:hover:not(.used){border-color:var(--or);background:var(--op);transform:translateY(-2px)}'+
       '.spell-letter.used{opacity:.25;cursor:default;transform:none}'+
-      '.spell-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}'+
+      '.spell-actions{display:flex;gap:8px;justify-content:center;flex-wrap:nowrap}'+
       '.spell-check{padding:12px 28px;background:linear-gradient(135deg,var(--or),var(--od));color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif}'+
       '.spell-clear{padding:12px 20px;background:var(--g2);color:var(--g6);border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer}'+
       '.spell-progress{font-size:12px;color:var(--g4);font-weight:600}'+
-      '.spell-fb{font-size:13px;font-weight:700;padding:8px 16px;border-radius:8px;min-height:36px;display:flex;align-items:center;justify-content:center}'+
-      '.spell-fb.fb-ok{background:#F0FDF4;color:#166534}'+
-      '.spell-fb.fb-no{background:#FEF2F2;color:#991B1B}'+
+      '.spell-fb{font-size:22px;font-weight:800;padding:14px 20px;border-radius:12px;min-height:0;display:flex;align-items:center;justify-content:center;margin-top:20px;border:2px solid transparent}'+
+      '.spell-fb.fb-ok{background:#F0FDF4;color:#166534;border-color:#86EFAC}'+
+      '.spell-fb.fb-no{background:#EFF6FF;color:#1D4ED8;border-color:#93C5FD}'+
       '.spell-prog{width:100%;max-width:440px;height:6px;background:var(--g2);border-radius:3px;overflow:hidden}'+
       '.spell-prog-fill{height:100%;background:linear-gradient(90deg,var(--gn),#16A34A);border-radius:3px;transition:width .4s}';
     document.head.appendChild(st);
@@ -550,12 +550,26 @@ function renderSpell(tc){
 
     var wrap=mk('div','spell-wrap');
 
-    /* progress */
-    var sprg=mk('div','spell-prog');
-    var spfill=mk('div','spell-prog-fill');
-    spfill.style.width=Math.round(qIdx/words.length*100)+'%';
-    sprg.appendChild(spfill);
+    /* progress dots */
     var sprogTxt=mk('div','spell-progress'); sprogTxt.textContent=(qIdx+1)+' / '+words.length;
+    var sprg=mk('div','progress-dots');
+    sprg.style.cssText='display:flex;flex-wrap:wrap;gap:5px;padding:10px;background:var(--g1);border-radius:10px;width:100%;max-width:440px;justify-content:center';
+    words.forEach(function(w,i){
+      var d=mk('div','pdot');
+      if(i<qIdx){
+        d.classList.add('pok');
+        d.style.background='#22C55E';
+      } else if(i===qIdx){
+        d.classList.add('pcur');
+        d.style.background='#F97316';
+        d.style.transform='scale(1.15)';
+        d.style.boxShadow='0 0 0 2px #fff,0 0 0 3px #F97316';
+      } else {
+        d.classList.add('pend');
+        d.style.background='#D1D5DB';
+      }
+      sprg.appendChild(d);
+    });
 
     /* card */
     var card=mk('div','spell-card');
@@ -612,27 +626,27 @@ function renderSpell(tc){
 
     /* buttons */
     var actions=mk('div','spell-actions');
-    var BTNBASE='padding:0 18px;height:44px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s;white-space:nowrap';
-    var clearBtn=mk('button'); clearBtn.textContent='Tozalash';
+    var BTNBASE='width:76px;height:40px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s;white-space:nowrap';
+    var clearBtn=mk('button'); clearBtn.textContent='Clear';
     clearBtn.style.cssText=BTNBASE+';background:var(--g2);color:var(--g6)';
     clearBtn.onmouseover=function(){this.style.background='var(--g3)';};
     clearBtn.onmouseout=function(){this.style.background='var(--g2)';};
     clearBtn.onclick=function(){filled=[];usedLetterIdx={};fb.className='spell-fb';fb.textContent='';renderBlanks();renderLetters();};
-    var checkBtn=mk('button'); checkBtn.textContent='Tekshirish';
+    var checkBtn=mk('button'); checkBtn.textContent='Check';
     checkBtn.style.cssText=BTNBASE+';background:linear-gradient(135deg,var(--or),var(--od));color:#fff;box-shadow:0 3px 10px rgba(249,115,22,.3)';
     checkBtn.onclick=checkSpell;
     var skipBtn=mk('button');
     skipBtn.style.cssText=BTNBASE+';background:#FEF9C3;color:#92400E;border:1px solid #FDE68A';
-    skipBtn.textContent="O'tkazib yuborish";
+    skipBtn.textContent="Skip";
     skipBtn.onclick=function(){
       if(answered) return;
-      fb.className='spell-fb fb-no'; fb.textContent="To'g'risi: "+wd.en;
+      fb.className='spell-fb fb-no'; fb.textContent=wd.en;
       answered=true; checkBtn.disabled=true; clearBtn.disabled=true; skipBtn.disabled=true;
       setTimeout(function(){qIdx++;showSpell();},1000);
     };
     var showBtn=mk('button');
     showBtn.style.cssText=BTNBASE+';background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE';
-    showBtn.textContent="To'g'ri javob";
+    showBtn.textContent="Answer";
     showBtn.onclick=function(){
       if(answered) return;
       answered=true;
@@ -657,12 +671,13 @@ function renderSpell(tc){
       });
       fb.className='spell-fb';
       fb.style.cssText='background:#EFF6FF;color:#1D4ED8;font-size:13px;font-weight:700;padding:8px 16px;border-radius:8px;display:flex;align-items:center;justify-content:center';
-      fb.textContent="To'g'ri javob: "+wd.en;
+      fb.textContent=wd.en;
       checkBtn.disabled=true; clearBtn.disabled=true; showBtn.disabled=true; skipBtn.disabled=true;
       setTimeout(function(){qIdx++;showSpell();},1500);
     };
     actions.appendChild(clearBtn); actions.appendChild(checkBtn); actions.appendChild(showBtn); actions.appendChild(skipBtn);
     card.appendChild(actions);
+    card.appendChild(fb);
     /* Back to menu — styled button below card */
     var backRow=mk('div'); backRow.style.cssText='margin-top:16px;width:100%;max-width:440px';
     var backBtn=mk('button');
@@ -1153,19 +1168,22 @@ function makeDots(){
   testQs.forEach(function(q,i){
     var a=testAns[i];
     var cls='pdot ';
+    var bg='#D1D5DB';
     if(testDone){
-      if(a&&a.ok) cls+='pok';
-      else if(a&&!a.ok&&a.skipped) cls+='pskip';
-      else if(a&&!a.ok) cls+='pno';
-      else cls+='pend';
+      if(a&&a.ok){cls+='pok';bg='#22C55E';}
+      else if(a&&!a.ok&&a.skipped){cls+='pskip';bg='#EAB308';}
+      else if(a&&!a.ok){cls+='pno';bg='#EF4444';}
+      else{cls+='pend';bg='#D1D5DB';}
     } else {
-      if(i===curQIdx) cls+='pcur';
-      else if(a&&a.ok) cls+='pok';
-      else if(a&&!a.ok&&a.skipped) cls+='pskip';
-      else if(a&&!a.ok) cls+='pno';
-      else cls+='pend';
+      if(i===curQIdx){cls+='pcur';bg='#F97316';}
+      else if(a&&a.ok){cls+='pok';bg='#22C55E';}
+      else if(a&&!a.ok&&a.skipped){cls+='pskip';bg='#EAB308';}
+      else if(a&&!a.ok){cls+='pno';bg='#EF4444';}
+      else{cls+='pend';bg='#D1D5DB';}
     }
     var d=mk('div',cls.trim());
+    d.style.background=bg;
+    if(i===curQIdx&&!testDone){d.style.transform='scale(1.15)';d.style.boxShadow='0 0 0 2px #fff,0 0 0 3px #F97316';}
     /* tooltip: show answer status */
     d.title='Savol '+(i+1)+(a?': '+(a.ok?'Togri':a.skipped?'Otkazilgan':'Xato'):'');
     pd.appendChild(d);
