@@ -289,6 +289,11 @@ function renderUnit(){
 
 function switchTab(t){
   curTab=t;
+  /* Remove test keyboard handler when switching away */
+  if(t!=='test'&&window._testKeyHandler){
+    document.removeEventListener('keydown',window._testKeyHandler);
+    window._testKeyHandler=null;
+  }
   document.querySelectorAll('.tab-btn').forEach(function(b,i){
     b.className='tab-btn'+(['words','flash','match','test'][i]===t?' active-tab':'');
   });
@@ -529,24 +534,84 @@ function startTest(){
 }
 
 function renderTestView(){
+  /* Remove old keydown listener */
+  if(window._testKeyHandler){
+    document.removeEventListener('keydown',window._testKeyHandler);
+    window._testKeyHandler=null;
+  }
+  if(!testDone&&testQs.length>0){
+    window._testKeyHandler=function(e){
+      var q=testQs[curQIdx];
+      if(!q||testAns[curQIdx]!==undefined) return;
+      var map={'1':0,'2':1,'3':2,'4':3};
+      if(map[e.key]!==undefined&&map[e.key]<q.o.length){
+        answerQ(map[e.key]); return;
+      }
+      if(e.key==='Enter'&&testAns[curQIdx]!==undefined) nextQ();
+    };
+    document.addEventListener('keydown',window._testKeyHandler);
+  }
   var tc=G('tab-content'); if(!tc)return; clr(tc);
   var total=testQs.length;
   var correct=0, answered=0;
   Object.keys(testAns).forEach(function(k){answered++;if(testAns[k].ok)correct++;});
 
   if(testDone){
+    var pct=Math.round(correct/total*100);
     var rb=mk('div','result-box');
     var rs=mk('div','result-score'); rs.textContent=correct+'/'+total;
-    var rp=mk('div','result-pct'); rp.textContent=Math.round(correct/total*100)+'%';
-    var rst=mk('div','result-stars'); rst.textContent=correct/total>=.9?'***':correct/total>=.7?'**':'*';
-    var rm=mk('div','result-msg'); rm.textContent=correct/total>=.9?'Ajoyib!':correct/total>=.7?'Yaxshi!':'Davom eting';
+    var rp=mk('div','result-pct'); rp.textContent=pct+'%';
+    var rst=mk('div','result-stars'); rst.textContent=pct>=90?'***':pct>=70?'**':pct>=50?'*':'';
+    var rm=mk('div','result-msg');
+    if(pct>=90) rm.textContent='Ajoyib natija!';
+    else if(pct>=70) rm.textContent='Yaxshi natija!';
+    else if(pct>=50) rm.textContent='Davom eting!';
+    else rm.textContent="Koʼproq mashq kerak";
     var rbtns=mk('div','result-btns');
-    var b1=mk('button','btn-retry'); b1.textContent='Qayta';
+    /* Retry same questions */
+    var b1=mk('button','btn-retry'); b1.textContent='Qayta boshlash';
     b1.onclick=function(){testAns={};curQIdx=0;testDone=false;renderTestView();};
+    rbtns.appendChild(b1);
+    /* Retry only wrong answers */
+    var wrongQs=testQs.filter(function(q,i){return testAns[i]&&!testAns[i].ok;});
+    if(wrongQs.length>0){
+      var b3=mk('button','btn-wrongs');
+      b3.style.cssText='padding:9px 16px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:#FEE2E2;color:#DC2626';
+      b3.textContent='Xatolarni yechish ('+wrongQs.length+')';
+      b3.onclick=function(){
+        testQs=wrongQs.sort(function(){return Math.random()-.5;});
+        testAns={};curQIdx=0;testDone=false;renderTestView();
+      };
+      rbtns.appendChild(b3);
+    }
+    /* New test setup */
     var b2=mk('button','btn-new-test'); b2.textContent='Yangi test';
     b2.onclick=function(){renderSetup(G('tab-content'));};
-    rbtns.appendChild(b1); rbtns.appendChild(b2);
+    rbtns.appendChild(b2);
+    /* Certificate or advice button */
+    if(pct>=70){
+      var bcert=mk('button','btn-cert'); bcert.textContent='Sertifikat';
+      bcert.style.cssText='padding:9px 20px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F97316,#EA580C);color:#fff';
+      bcert.onclick=function(){showCert(pct);};
+      rbtns.appendChild(bcert);
+    }
     rb.appendChild(rs); rb.appendChild(rp); rb.appendChild(rst); rb.appendChild(rm); rb.appendChild(rbtns);
+    /* Advice block */
+    if(pct<70){
+      var adv=mk('div'); adv.style.cssText='background:#FFF7ED;border:2px solid #FED7AA;border-radius:12px;padding:16px;margin-top:12px';
+      var advt=mk('div'); advt.style.cssText='font-size:13px;font-weight:700;color:#EA580C;margin-bottom:10px';
+      advt.textContent=pct>=50?"Yaxshi, lekin yana mashq kerak:":"Koʼproq vaqt ajrating";
+      var tips=[];
+      if(pct<50){
+        tips=["Soʼzlar tabida barcha soʼzlarni yod oling","Flashcard bilan har kuni 5 daqiqa mashq qiling","Juftlik oʼyinini bir necha marta oʼynang","Keyin testni qayta topshiring"];
+      } else {
+        tips=["Flashcard bilan qayta oʼrganing","Xato soʼzlarga eʼtibor bering","Bir kun kutib qayta topshiring"];
+      }
+      var ul=mk('ul'); ul.style.cssText='padding-left:18px;display:flex;flex-direction:column;gap:6px';
+      tips.forEach(function(t){var li=mk('li'); li.style.cssText='font-size:12px;color:#4B5563'; li.textContent=t; ul.appendChild(li);});
+      adv.appendChild(advt); adv.appendChild(ul);
+      rb.appendChild(adv);
+    }
     tc.appendChild(rb);
     tc.appendChild(makeDots());
     markDone(correct,total);
@@ -592,7 +657,8 @@ function renderQView(){
   var qv=G('q-view'); if(!qv||curQIdx>=testQs.length)return; clr(qv);
   var q=testQs[curQIdx], a=testAns[curQIdx], answered=a!==undefined;
   var card=mk('div','q-card'+(answered?(a.ok?' q-ok':' q-no'):''));
-  var qn=mk('div','q-num'); qn.textContent='Savol '+(curQIdx+1)+' / '+testQs.length;
+  var qn=mk('div','q-num');
+  qn.textContent='Savol '+(curQIdx+1)+' / '+testQs.length+' • 1-4 tugma yoki Enter';
   var qt=mk('div','q-text'); qt.textContent=q.q;
   var og=mk('div','opts-grid');
   q.o.forEach(function(opt,oi){
@@ -634,6 +700,66 @@ function markDone(c,t){
   localStorage.setItem('ows_p',JSON.stringify(prog));
   var el=G('ui-'+curUnit.id); if(el&&pct>=70)el.classList.add('done-unit');
   buildSidebar();
+}
+
+function showCert(pct){
+  var date=new Date().toLocaleDateString('uz-UZ');
+  var stars=pct>=90?'★★★':pct>=80?'★★☆':'★☆☆';
+  var level=pct>=90?'A':(pct>=80?'B':'C');
+  var color=pct>=90?'#16A34A':(pct>=80?'#2563EB':'#F97316');
+  var msg=pct>=90?'Mukammal bilim namoyon etdi':'Muvaffaqiyatli topshirdi';
+  var cert='<!DOCTYPE html><html><head><meta charset="UTF-8">'+
+    '<style>'+
+    'body{margin:0;padding:0;background:#f8f5f0;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:Georgia,serif}'+
+    '.cert{width:750px;background:#fff;border:12px solid #F97316;border-radius:4px;padding:50px 60px;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.15)}'+
+    '.cert::before{content:"";position:absolute;inset:8px;border:2px solid #FED7AA;pointer-events:none}'+
+    '.logo{font-size:40px;margin-bottom:8px}'+
+    '.brand{font-size:13px;color:#9CA3AF;letter-spacing:2px;text-transform:uppercase;margin-bottom:32px}'+
+    '.cert-title{font-size:13px;color:#9CA3AF;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px}'+
+    '.cert-h{font-size:36px;font-weight:700;color:#1F2937;margin-bottom:28px}'+
+    '.presented{font-size:13px;color:#9CA3AF;margin-bottom:8px}'+
+    '.name{font-size:32px;font-weight:700;color:#F97316;border-bottom:2px solid #FED7AA;display:inline-block;padding-bottom:4px;margin-bottom:28px}'+
+    '.topic-label{font-size:12px;color:#9CA3AF;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px}'+
+    '.topic{font-size:20px;font-weight:700;color:#1F2937;margin-bottom:28px}'+
+    '.score-row{display:flex;align-items:center;justify-content:center;gap:32px;margin-bottom:28px}'+
+    '.score-box{text-align:center}'+
+    '.score-num{font-size:36px;font-weight:800;color:'+color+'}'+
+    '.score-lbl{font-size:11px;color:#9CA3AF;text-transform:uppercase;letter-spacing:1px}'+
+    '.stars{font-size:24px;color:#F97316;margin-bottom:6px}'+
+    '.level-badge{display:inline-block;width:48px;height:48px;border-radius:50%;background:'+color+';color:#fff;font-size:22px;font-weight:800;line-height:48px}'+
+    '.msg{font-size:14px;color:#6B7280;font-style:italic;margin-bottom:32px}'+
+    '.footer-row{display:flex;justify-content:space-between;align-items:flex-end;border-top:1px solid #E5E7EB;padding-top:20px}'+
+    '.footer-item{text-align:center}'+
+    '.footer-val{font-size:13px;font-weight:700;color:#1F2937}'+
+    '.footer-lbl{font-size:11px;color:#9CA3AF;margin-top:2px}'+
+    '.sign{font-size:22px;font-family:cursive;color:#1F2937;border-bottom:1px solid #1F2937;padding-bottom:2px}'+
+    '@media print{body{background:#fff}.cert{box-shadow:none}}'+
+    '</style></head><body>'+
+    '<div class="cert">'+
+    '<div class="logo">&#x1F4DA;</div>'+
+    '<div class="brand">Oxford Word Skills Basic</div>'+
+    '<div class="cert-title">Sertifikat</div>'+
+    '<div class="cert-h">Muvaffaqiyat Sertifikati</div>'+
+    '<div class="presented">Ushbu sertifikat</div>'+
+    '<div class="name">'+userName+'</div>'+
+    '<div class="topic-label">mavzu</div>'+
+    '<div class="topic">'+curUnit.title+' ('+curSec.title+')</div>'+
+    '<div class="score-row">'+
+    '<div class="score-box"><div class="stars">'+stars+'</div><div class="score-lbl">Daraja</div></div>'+
+    '<div class="score-box"><div class="score-num">'+pct+'%</div><div class="score-lbl">Natija</div></div>'+
+    '<div class="score-box"><div class="level-badge">'+level+'</div><div class="score-lbl" style="margin-top:4px">Baho</div></div>'+
+    '</div>'+
+    '<div class="msg">'+msg+'</div>'+
+    '<div class="footer-row">'+
+    '<div class="footer-item"><div class="footer-val">'+date+'</div><div class="footer-lbl">Sana</div></div>'+
+    '<div class="footer-item"><div class="sign">Oxford WS</div><div class="footer-lbl">Imzo</div></div>'+
+    '<div class="footer-item"><div class="footer-val">OWS-2025</div><div class="footer-lbl">ID</div></div>'+
+    '</div></div>'+
+    '<div style="text-align:center;margin-top:20px"><button onclick="window.print()" style="padding:10px 28px;background:#F97316;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Chop etish / PDF</button></div>'+
+    '</body></html>';
+  var blob=new Blob([cert],{type:'text/html;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  window.open(url,'_blank');
 }
 
 function exportPDF(){
@@ -696,6 +822,10 @@ function closeSidebar(){
 window.onload=function(){
   var s=localStorage.getItem('ows_u');
   if(s){var p=s.split(' ');G('inp-last').value=p[0]||'';G('inp-first').value=p.slice(1).join(' ')||'';}
+  /* Enter key on login */
+  ['inp-last','inp-first'].forEach(function(id){
+    G(id).addEventListener('keydown',function(e){if(e.key==='Enter')startApp();});
+  });
 };
 </script>
 </body>
