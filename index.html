@@ -95,10 +95,10 @@ body{font-family:Inter,sans-serif;background:var(--g1);color:var(--g8);min-heigh
 .count-btn.selected{border-color:var(--or);background:var(--op);color:var(--od)}
 .start-test-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--or),var(--od));color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif}
 .test-score-badge{background:var(--op);color:var(--od);padding:5px 12px;border-radius:14px;font-size:12px;font-weight:700}
-.progress-dots{display:flex;flex-wrap:wrap;gap:4px;margin:14px 0;padding:12px;background:var(--g1);border-radius:10px}
-.pdot{width:14px;height:14px;border-radius:3px;flex-shrink:0;transition:all .15s}
+.progress-dots{display:flex;flex-wrap:wrap;gap:3px;margin:10px 0;padding:8px;background:var(--g1);border-radius:8px}
+.pdot{width:8px;height:8px;border-radius:1px;flex-shrink:0;transition:all .15s}
 .pdot.pend{background:#D1D5DB !important}
-.pdot.pcur{background:#F97316 !important;box-shadow:0 0 0 2px #fff,0 0 0 3px #F97316;transform:scale(1.15)}
+.pdot.pcur{background:#F97316 !important;box-shadow:0 0 0 1px #fff,0 0 0 2px #F97316;transform:scale(1.2)}
 .pdot.pok{background:#22C55E !important}
 .pdot.pno{background:#EF4444 !important}
 .pdot.pskip{background:#EAB308 !important}
@@ -553,7 +553,7 @@ function renderSpell(tc){
     /* progress dots */
     var sprogTxt=mk('div','spell-progress'); sprogTxt.textContent=(qIdx+1)+' / '+words.length;
     var sprg=mk('div','progress-dots');
-    sprg.style.cssText='display:flex;flex-wrap:wrap;gap:5px;padding:10px;background:var(--g1);border-radius:10px;width:100%;max-width:440px;justify-content:center';
+    sprg.style.cssText='display:flex;flex-wrap:wrap;gap:3px;padding:8px;background:var(--g1);border-radius:8px;width:100%;max-width:440px;justify-content:center';
     words.forEach(function(w,i){
       var d=mk('div','pdot');
       if(i<qIdx){
