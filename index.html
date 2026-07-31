@@ -96,11 +96,12 @@ body{font-family:Inter,sans-serif;background:var(--g1);color:var(--g8);min-heigh
 .start-test-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--or),var(--od));color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif}
 .test-score-badge{background:var(--op);color:var(--od);padding:5px 12px;border-radius:14px;font-size:12px;font-weight:700}
 .progress-dots{display:flex;flex-wrap:wrap;gap:4px;margin:14px 0;padding:12px;background:var(--g1);border-radius:10px}
-.pdot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.pdot{width:14px;height:14px;border-radius:4px;flex-shrink:0;transition:transform .15s}
 .pdot.pend{background:var(--g3)}
-.pdot.pcur{background:var(--or);box-shadow:0 0 0 2px #fff,0 0 0 4px var(--or)}
+.pdot.pcur{background:var(--or);box-shadow:0 0 0 2px #fff,0 0 0 3px var(--or);transform:scale(1.15)}
 .pdot.pok{background:var(--gn)}
 .pdot.pno{background:var(--rd)}
+.pdot.pskip{background:#EAB308}
 .q-card{background:#fff;border-radius:14px;padding:22px;border:2px solid var(--g2);animation:fadeUp .25s ease}
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .q-card.q-ok{border-color:var(--gn)}
@@ -1152,9 +1153,22 @@ function makeDots(){
   testQs.forEach(function(q,i){
     var a=testAns[i];
     var cls='pdot ';
-    if(testDone){cls+=a&&a.ok?'pok':a&&!a.ok?'pno':'pend';}
-    else{cls+=i===curQIdx?'pcur':a&&a.ok?'pok':a&&!a.ok?'pno':'pend';}
-    var d=mk('div',cls.trim()); pd.appendChild(d);
+    if(testDone){
+      if(a&&a.ok) cls+='pok';
+      else if(a&&!a.ok&&a.skipped) cls+='pskip';
+      else if(a&&!a.ok) cls+='pno';
+      else cls+='pend';
+    } else {
+      if(i===curQIdx) cls+='pcur';
+      else if(a&&a.ok) cls+='pok';
+      else if(a&&!a.ok&&a.skipped) cls+='pskip';
+      else if(a&&!a.ok) cls+='pno';
+      else cls+='pend';
+    }
+    var d=mk('div',cls.trim());
+    /* tooltip: show answer status */
+    d.title='Savol '+(i+1)+(a?': '+(a.ok?'Togri':a.skipped?'Otkazilgan':'Xato'):'');
+    pd.appendChild(d);
   });
   return pd;
 }
