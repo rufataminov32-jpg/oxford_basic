@@ -482,8 +482,15 @@ function renderFlash(tc){
     var bnext=mk('button'); bnext.style.cssText='flex:1;padding:11px;background:linear-gradient(135deg,var(--or),var(--od));color:#fff;border:none;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer';
     bnext.textContent=idx<words.length-1?'Keyingi':'Tugadi';
     bnext.onclick=function(){if(idx<words.length-1){idx++;showCard();}};
+    var fback=mk('button');
+    fback.style.cssText='width:100%;max-width:360px;padding:12px;background:#fff;border:2px solid var(--g3);border-radius:12px;font-size:13px;font-weight:600;color:var(--g6);cursor:pointer;transition:all .2s;margin-top:4px';
+    fback.innerHTML='&#8592; Asosiy menyuga qaytish';
+    fback.onmouseover=function(){this.style.borderColor='var(--or)';this.style.color='var(--or)';this.style.background='var(--op)';};
+    fback.onmouseout=function(){this.style.borderColor='var(--g3)';this.style.color='var(--g6)';this.style.background='#fff';};
+    fback.onclick=function(){switchTab('words');};
     wrap.appendChild(counter); wrap.appendChild(scene); wrap.appendChild(spkRow); wrap.appendChild(btns);
     btns.appendChild(bprev); btns.appendChild(bnext);
+    wrap.appendChild(fback);
     tc.appendChild(wrap);
   }
   showCard();
@@ -508,7 +515,7 @@ function renderSpell(tc){
       '.spell-letter{width:40px;height:44px;border:2px solid var(--g3);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;cursor:pointer;background:#fff;transition:all .15s;color:var(--g8)}'+
       '.spell-letter:hover:not(.used){border-color:var(--or);background:var(--op);transform:translateY(-2px)}'+
       '.spell-letter.used{opacity:.25;cursor:default;transform:none}'+
-      '.spell-actions{display:flex;gap:10px}'+
+      '.spell-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}'+
       '.spell-check{padding:12px 28px;background:linear-gradient(135deg,var(--or),var(--od));color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif}'+
       '.spell-clear{padding:12px 20px;background:var(--g2);color:var(--g6);border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer}'+
       '.spell-progress{font-size:12px;color:var(--g4);font-weight:600}'+
@@ -604,12 +611,70 @@ function renderSpell(tc){
 
     /* buttons */
     var actions=mk('div','spell-actions');
-    var clearBtn=mk('button','spell-clear'); clearBtn.textContent='Tozalash';
+    var BTNBASE='padding:0 18px;height:44px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s;white-space:nowrap';
+    var clearBtn=mk('button'); clearBtn.textContent='Tozalash';
+    clearBtn.style.cssText=BTNBASE+';background:var(--g2);color:var(--g6)';
+    clearBtn.onmouseover=function(){this.style.background='var(--g3)';};
+    clearBtn.onmouseout=function(){this.style.background='var(--g2)';};
     clearBtn.onclick=function(){filled=[];usedLetterIdx={};fb.className='spell-fb';fb.textContent='';renderBlanks();renderLetters();};
-    var checkBtn=mk('button','spell-check'); checkBtn.textContent='Tekshirish';
+    var checkBtn=mk('button'); checkBtn.textContent='Tekshirish';
+    checkBtn.style.cssText=BTNBASE+';background:linear-gradient(135deg,var(--or),var(--od));color:#fff;box-shadow:0 3px 10px rgba(249,115,22,.3)';
     checkBtn.onclick=checkSpell;
-    actions.appendChild(clearBtn); actions.appendChild(checkBtn);
+    var skipBtn=mk('button');
+    skipBtn.style.cssText=BTNBASE+';background:#FEF9C3;color:#92400E;border:1px solid #FDE68A';
+    skipBtn.textContent="O'tkazib yuborish";
+    skipBtn.onclick=function(){
+      if(answered) return;
+      fb.className='spell-fb fb-no'; fb.textContent="To'g'risi: "+wd.en;
+      answered=true; checkBtn.disabled=true; clearBtn.disabled=true; skipBtn.disabled=true;
+      setTimeout(function(){qIdx++;showSpell();},1000);
+    };
+    var showBtn=mk('button');
+    showBtn.style.cssText=BTNBASE+';background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE';
+    showBtn.textContent="To'g'ri javob";
+    showBtn.onclick=function(){
+      if(answered) return;
+      answered=true;
+      /* fill blanks with correct answer highlighted in blue */
+      filled=[];
+      usedLetterIdx={};
+      for(var p=0;p<answer.length;p++){
+        /* find letter in available letters */
+        for(var li=0;li<letters.length;li++){
+          if(!usedLetterIdx[li]&&letters[li]===answer[p]){
+            filled.push({pos:p,letter:answer[p],letterIdx:li});
+            usedLetterIdx[li]=true; break;
+          }
+        }
+      }
+      renderBlanks();
+      renderLetters();
+      blankEls.forEach(function(bl){
+        bl.style.borderBottomColor='#3B82F6';
+        bl.style.color='#1D4ED8';
+        bl.style.background='#EFF6FF';
+      });
+      fb.className='spell-fb';
+      fb.style.cssText='background:#EFF6FF;color:#1D4ED8;font-size:13px;font-weight:700;padding:8px 16px;border-radius:8px;display:flex;align-items:center;justify-content:center';
+      fb.textContent="To'g'ri javob: "+wd.en;
+      checkBtn.disabled=true; clearBtn.disabled=true; showBtn.disabled=true; skipBtn.disabled=true;
+      setTimeout(function(){qIdx++;showSpell();},1500);
+    };
+    actions.appendChild(clearBtn); actions.appendChild(checkBtn); actions.appendChild(showBtn); actions.appendChild(skipBtn);
     card.appendChild(actions);
+    /* Back to menu — styled button below card */
+    var backRow=mk('div'); backRow.style.cssText='margin-top:16px;width:100%;max-width:440px';
+    var backBtn=mk('button');
+    backBtn.style.cssText='width:100%;padding:12px;background:#fff;border:2px solid var(--g3);border-radius:12px;font-size:13px;font-weight:600;color:var(--g6);cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px';
+    backBtn.innerHTML='&#8592; Asosiy menyuga qaytish';
+    backBtn.onmouseover=function(){this.style.borderColor='var(--or)';this.style.color='var(--or)';this.style.background='var(--op)';};
+    backBtn.onmouseout=function(){this.style.borderColor='var(--g3)';this.style.color='var(--g6)';this.style.background='#fff';};
+    backBtn.onclick=function(){
+      if(window._spellKeyHandler){document.removeEventListener('keydown',window._spellKeyHandler);window._spellKeyHandler=null;}
+      switchTab('words');
+    };
+    backRow.appendChild(backBtn);
+    wrap.appendChild(backRow);
 
     function renderBlanks(){
       blankEls.forEach(function(bl,pos){
@@ -680,8 +745,8 @@ function renderSpell(tc){
     var btns=mk('div','gr-btns');
     var b1=mk('button','gr-again'); b1.textContent='Qayta';
     b1.onclick=function(){renderSpell(tc);};
-    var b2=mk('button','gr-back'); b2.textContent='Boshqa';
-    b2.onclick=function(){switchTab('words');};
+    var b2=mk('button','gr-back'); b2.textContent='Menyuga qaytish';
+    b2.onclick=function(){renderUnit();};
     btns.appendChild(b1); btns.appendChild(b2);
     card.appendChild(sc); card.appendChild(st2); card.appendChild(msg); card.appendChild(btns);
     wrap.appendChild(card); tc.appendChild(wrap);
@@ -789,10 +854,17 @@ function renderGame(tc){
       grid.appendChild(btn);
     });
 
+    var gback=mk('button');
+    gback.style.cssText='width:100%;max-width:420px;padding:12px;background:#fff;border:2px solid var(--g3);border-radius:12px;font-size:13px;font-weight:600;color:var(--g6);cursor:pointer;transition:all .2s;margin-top:4px';
+    gback.innerHTML='&#8592; Asosiy menyuga qaytish';
+    gback.onmouseover=function(){this.style.borderColor='var(--or)';this.style.color='var(--or)';this.style.background='var(--op)';};
+    gback.onmouseout=function(){this.style.borderColor='var(--g3)';this.style.color='var(--g6)';this.style.background='#fff';};
+    gback.onclick=function(){switchTab('words');};
     wrap.appendChild(sbar);
     wrap.appendChild(prog);
     wrap.appendChild(card);
     wrap.appendChild(grid);
+    wrap.appendChild(gback);
     tc.appendChild(wrap);
   }
 
@@ -807,8 +879,8 @@ function renderGame(tc){
     var btns=mk('div','gr-btns');
     var b1=mk('button','gr-again'); b1.textContent='Qayta o\'ynash';
     b1.onclick=function(){renderGame(tc);};
-    var b2=mk('button','gr-back'); b2.textContent='Boshqa rejim';
-    b2.onclick=function(){switchTab('test');};
+    var b2=mk('button','gr-back'); b2.textContent='Menyuga qaytish';
+    b2.onclick=function(){renderUnit();};
     btns.appendChild(b1); btns.appendChild(b2);
     res.appendChild(score); res.appendChild(stars); res.appendChild(msg); res.appendChild(btns);
     wrap.appendChild(res);
