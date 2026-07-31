@@ -377,7 +377,7 @@ function openUnit(sid,uid){
 function renderUnit(){
   var ct=G('content-area'); clr(ct);
   var tabs=mk('div','tab-bar');
-  var tabDefs=[['words',"So'zlar"],['flash','Flashcard'],['match','Juftlik'],['game',"O'yin"],['test','Test']];
+  var tabDefs=[['words',"So'zlar"],['flash','Flashcard'],['match','Juftlik'],['game',"O'yin"],['spell','Harflar'],['test','Test']];
   tabDefs.forEach(function(t){
     var b=mk('button','tab-btn'+(curTab===t[0]?' active-tab':''));
     b.textContent=t[1];
@@ -392,12 +392,13 @@ function renderUnit(){
 function switchTab(t){
   curTab=t;
   /* Remove test keyboard handler when switching away */
+  if(window._spellKeyHandler){document.removeEventListener('keydown',window._spellKeyHandler);window._spellKeyHandler=null;}
   if(t!=='test'&&window._testKeyHandler){
     document.removeEventListener('keydown',window._testKeyHandler);
     window._testKeyHandler=null;
   }
   document.querySelectorAll('.tab-btn').forEach(function(b,i){
-    b.className='tab-btn'+(['words','flash','match','game','test'][i]===t?' active-tab':'');
+    b.className='tab-btn'+(['words','flash','match','game','spell','test'][i]===t?' active-tab':'');
   });
   renderTab();
 }
@@ -408,6 +409,7 @@ function renderTab(){
   else if(curTab==='flash')renderFlash(tc);
   else if(curTab==='match')renderMatch(tc);
   else if(curTab==='game')renderGame(tc);
+  else if(curTab==='spell')renderSpell(tc);
   else renderSetup(tc);
 }
 
@@ -485,6 +487,207 @@ function renderFlash(tc){
     tc.appendChild(wrap);
   }
   showCard();
+}
+
+function renderSpell(tc){
+  clr(tc);
+  if(!document.getElementById('spell-style')){
+    var st=document.createElement('style'); st.id='spell-style';
+    st.textContent=
+      '.spell-wrap{display:flex;flex-direction:column;align-items:center;gap:16px;padding:10px 0}'+
+      '.spell-card{width:100%;max-width:440px;background:#fff;border-radius:20px;border:2px solid var(--g2);padding:28px 24px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.07)}'+
+      '.spell-uz{font-size:22px;font-weight:800;color:var(--or);margin-bottom:4px}'+
+      '.spell-hint{font-size:12px;color:var(--g4);margin-bottom:20px}'+
+      '.spell-blanks{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-bottom:20px;min-height:44px}'+
+      '.spell-blank{width:36px;height:44px;border-bottom:2.5px solid var(--g3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--g8);cursor:pointer;transition:all .2s;border-radius:4px 4px 0 0}'+
+      '.spell-blank:hover{background:var(--op);border-bottom-color:var(--or)}'+
+      '.spell-blank.filled{border-bottom-color:var(--or)}'+
+      '.spell-blank.correct{border-bottom-color:var(--gn);color:var(--gn);background:#F0FDF4}'+
+      '.spell-blank.wrong{border-bottom-color:var(--rd);color:var(--rd);background:#FEF2F2;animation:shakeX .4s}'+
+      '.spell-letters{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-bottom:20px}'+
+      '.spell-letter{width:40px;height:44px;border:2px solid var(--g3);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;cursor:pointer;background:#fff;transition:all .15s;color:var(--g8)}'+
+      '.spell-letter:hover:not(.used){border-color:var(--or);background:var(--op);transform:translateY(-2px)}'+
+      '.spell-letter.used{opacity:.25;cursor:default;transform:none}'+
+      '.spell-actions{display:flex;gap:10px}'+
+      '.spell-check{padding:12px 28px;background:linear-gradient(135deg,var(--or),var(--od));color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif}'+
+      '.spell-clear{padding:12px 20px;background:var(--g2);color:var(--g6);border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer}'+
+      '.spell-progress{font-size:12px;color:var(--g4);font-weight:600}'+
+      '.spell-fb{font-size:13px;font-weight:700;padding:8px 16px;border-radius:8px;min-height:36px;display:flex;align-items:center;justify-content:center}'+
+      '.spell-fb.fb-ok{background:#F0FDF4;color:#166534}'+
+      '.spell-fb.fb-no{background:#FEF2F2;color:#991B1B}'+
+      '.spell-prog{width:100%;max-width:440px;height:6px;background:var(--g2);border-radius:3px;overflow:hidden}'+
+      '.spell-prog-fill{height:100%;background:linear-gradient(90deg,var(--gn),#16A34A);border-radius:3px;transition:width .4s}';
+    document.head.appendChild(st);
+  }
+
+  var words=curUnit.words.slice().sort(function(){return Math.random()-.5;});
+  var qIdx=0, okCount=0;
+
+  function shuffle(arr){return arr.slice().sort(function(){return Math.random()-.5;});}
+
+  function showSpell(){
+    clr(tc);
+    if(qIdx>=words.length){ showSpellResult(); return; }
+    var wd=words[qIdx];
+    var answer=wd.en.toLowerCase();
+    var letters=shuffle(answer.split(''));
+    /* add 2-3 extra decoy letters for harder words */
+    var extras='aeiourstln';
+    if(answer.length<=5){
+      for(var x=0;x<2;x++) letters.push(extras[Math.floor(Math.random()*extras.length)]);
+      letters=shuffle(letters);
+    }
+    var filled=[]; /* {letter, letterIdx} */
+    var usedLetterIdx={};
+
+    var wrap=mk('div','spell-wrap');
+
+    /* progress */
+    var sprg=mk('div','spell-prog');
+    var spfill=mk('div','spell-prog-fill');
+    spfill.style.width=Math.round(qIdx/words.length*100)+'%';
+    sprg.appendChild(spfill);
+    var sprogTxt=mk('div','spell-progress'); sprogTxt.textContent=(qIdx+1)+' / '+words.length;
+
+    /* card */
+    var card=mk('div','spell-card');
+    var uz=mk('div','spell-uz'); uz.textContent=wd.uz;
+    var hint=mk('div','spell-hint'); hint.textContent="Inglizcha so'zni yig'ing";
+    card.appendChild(uz); card.appendChild(hint);
+
+    /* blanks */
+    var blanksDiv=mk('div','spell-blanks');
+    var blankEls=[];
+    for(var b=0;b<answer.length;b++){
+      var bl=mk('div','spell-blank'); bl.setAttribute('data-pos',b);
+      (function(pos){bl.onclick=function(){
+        /* remove letter from this position */
+        var found=-1;
+        for(var f=0;f<filled.length;f++){if(filled[f].pos===pos){found=f;break;}}
+        if(found<0) return;
+        var li=filled[found].letterIdx;
+        delete usedLetterIdx[li];
+        filled.splice(found,1);
+        renderBlanks(); renderLetters();
+      };})(b);
+      blankEls.push(bl); blanksDiv.appendChild(bl);
+    }
+    card.appendChild(blanksDiv);
+
+    /* letters */
+    var lettersDiv=mk('div','spell-letters');
+    var letterEls=[];
+    letters.forEach(function(ltr,idx){
+      var le=mk('div','spell-letter'); le.textContent=ltr.toUpperCase();
+      (function(letter,lidx){le.onclick=function(){
+        if(usedLetterIdx[lidx]) return;
+        /* find next empty blank */
+        var nextPos=-1;
+        for(var p=0;p<answer.length;p++){
+          var taken=false;
+          for(var f=0;f<filled.length;f++){if(filled[f].pos===p){taken=true;break;}}
+          if(!taken){nextPos=p;break;}
+        }
+        if(nextPos<0) return;
+        usedLetterIdx[lidx]=true;
+        filled.push({pos:nextPos,letter:letter,letterIdx:lidx});
+        renderBlanks(); renderLetters();
+        /* auto check when all filled */
+        if(filled.length===answer.length) setTimeout(checkSpell,200);
+      };})(ltr,idx);
+      letterEls.push(le); lettersDiv.appendChild(le);
+    });
+    card.appendChild(lettersDiv);
+
+    /* feedback */
+    var fb=mk('div','spell-fb'); card.appendChild(fb);
+
+    /* buttons */
+    var actions=mk('div','spell-actions');
+    var clearBtn=mk('button','spell-clear'); clearBtn.textContent='Tozalash';
+    clearBtn.onclick=function(){filled=[];usedLetterIdx={};fb.className='spell-fb';fb.textContent='';renderBlanks();renderLetters();};
+    var checkBtn=mk('button','spell-check'); checkBtn.textContent='Tekshirish';
+    checkBtn.onclick=checkSpell;
+    actions.appendChild(clearBtn); actions.appendChild(checkBtn);
+    card.appendChild(actions);
+
+    function renderBlanks(){
+      blankEls.forEach(function(bl,pos){
+        var found=null;
+        for(var f=0;f<filled.length;f++){if(filled[f].pos===pos){found=filled[f];break;}}
+        bl.textContent=found?found.letter.toUpperCase():'';
+        bl.className='spell-blank'+(found?' filled':'');
+      });
+    }
+
+    function renderLetters(){
+      letterEls.forEach(function(le,idx){
+        le.className='spell-letter'+(usedLetterIdx[idx]?' used':'');
+      });
+    }
+
+    var answered=false;
+    function checkSpell(){
+      if(answered) return;
+      if(filled.length<answer.length){fb.className='spell-fb fb-no';fb.textContent="Barcha harflarni qo'ying!";return;}
+      var built='';
+      for(var p=0;p<answer.length;p++){
+        for(var f=0;f<filled.length;f++){if(filled[f].pos===p){built+=filled[f].letter;break;}}
+      }
+      if(built===answer){
+        answered=true; okCount++;
+        blankEls.forEach(function(bl){bl.classList.add('correct');});
+        fb.className='spell-fb fb-ok'; fb.textContent="To'g'ri!";
+        checkBtn.disabled=true; clearBtn.disabled=true;
+        setTimeout(function(){qIdx++;showSpell();},800);
+      } else {
+        blankEls.forEach(function(bl){bl.classList.add('wrong');});
+        fb.className='spell-fb fb-no'; fb.textContent="Xato! To'g'risi: "+wd.en;
+        setTimeout(function(){
+          blankEls.forEach(function(bl){bl.className='spell-blank';});
+          filled=[];usedLetterIdx={};renderBlanks();renderLetters();
+          fb.className='spell-fb';fb.textContent='';
+        },1200);
+      }
+    }
+
+    /* keyboard support */
+    if(window._spellKeyHandler) document.removeEventListener('keydown',window._spellKeyHandler);
+    window._spellKeyHandler=function(e){
+      if(curTab!=='spell') return;
+      var k=e.key.toLowerCase();
+      if(k==='backspace'||k==='delete'){clearBtn.click();return;}
+      if(k==='enter'){checkSpell();return;}
+      /* find unused letter matching key */
+      for(var i=0;i<letters.length;i++){
+        if(!usedLetterIdx[i]&&letters[i]===k){letterEls[i].click();break;}
+      }
+    };
+    document.addEventListener('keydown',window._spellKeyHandler);
+
+    wrap.appendChild(sprogTxt); wrap.appendChild(sprg); wrap.appendChild(card);
+    tc.appendChild(wrap);
+  }
+
+  function showSpellResult(){
+    clr(tc);
+    var pct=Math.round(okCount/words.length*100);
+    var wrap=mk('div','spell-wrap');
+    var card=mk('div','spell-card');
+    var sc=mk('div','gr-score'); sc.textContent=okCount+'/'+words.length;
+    var st2=mk('div','gr-stars'); st2.textContent=pct>=90?'★★★':pct>=70?'★★':'★';
+    var msg=mk('div','gr-msg'); msg.textContent=pct>=90?'Mukammal!':pct>=70?'Yaxshi!':'Yana mashq qiling!';
+    var btns=mk('div','gr-btns');
+    var b1=mk('button','gr-again'); b1.textContent='Qayta';
+    b1.onclick=function(){renderSpell(tc);};
+    var b2=mk('button','gr-back'); b2.textContent='Boshqa';
+    b2.onclick=function(){switchTab('words');};
+    btns.appendChild(b1); btns.appendChild(b2);
+    card.appendChild(sc); card.appendChild(st2); card.appendChild(msg); card.appendChild(btns);
+    wrap.appendChild(card); tc.appendChild(wrap);
+  }
+
+  showSpell();
 }
 
 function renderGame(tc){
